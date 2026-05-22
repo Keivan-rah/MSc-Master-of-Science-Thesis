@@ -13,7 +13,6 @@ related to the performance of the system, since the operating frequency is the s
 the displacement and position at each frame of the image and calibrating the actual position, as position feedback, a position 
 controller is implemented for this actuator to reduce or minimize the error signal (the difference between the actual position 
 and the reference or desired position of the actuator) to zero, and then the results are examined. Also In this research, a 
-digital control system or a digital controller designed with 2 zeros and 2 poles, which has an integrator to zeroing the steady
-state error(SSE) of the system, is used. 
+digital control system or a digital controller designed with 2 zeros and 2 poles, which has an integrator to zeroing the Steady State Error(SSE) of the system, is used. 
 Keywords: machine vision system, motion control system, feedback, image processing, position control, data exchange, signal-
 exchange, digital controller.
