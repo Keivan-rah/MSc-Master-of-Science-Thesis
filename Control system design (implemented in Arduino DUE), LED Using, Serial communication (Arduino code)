@@ -1,0 +1,114 @@
+#include <DueTimer.h>
+#include <Adafruit_NeoPixel.h>
+Adafruit_NeoPixel pixels(8, 6, NEO_GRB + NEO_KHZ800);
+
+int i ;
+String pos;
+volatile float e0;      // Position error
+volatile float ps;      // Sensed position by Camera (recieved from Jetson)
+volatile float e1 = 0 ; // Position error of one sample before 
+volatile float e2 = 0 ; // Position error of two sample before 
+volatile float pr  ;    // Reference position
+volatile float u0 ;     // Output voltage from Arduino to driver
+volatile float u1 = 0 ; // Output voltage of one sample before
+volatile float u2 = 0 ; // Output voltage of two sample before
+
+const int numSamples = 3000; // number of samples to be logged
+
+// Control Parameters //
+double aa=52.03/1.69 , bb=-0.4621, cc=-0.9835, dd=0.06684;
+double cu1=1-dd, cu2=dd, ce=aa, ce1=aa*(bb+cc), ce2=aa*bb*cc;
+
+// Arrays to store data to be sent back to Jetson //
+volatile double ref_pos[numSamples];
+volatile double ac_pos[numSamples];
+
+// Sample counter //
+volatile int arrCnt = 0;
+
+int flag = 1; // If true: logged data will be printed
+float ref=1;  // Saturation voltage to driver (0 to 2.2 volt)
+
+void setup() {
+  
+  // LED initializing //
+  pixels.begin();
+  pixels.clear();
+  for(int i=0; i<8; i++) {
+    pixels.setPixelColor(i, pixels.Color(150, 250,150));
+    pixels.show();   
+  }
+  
+  // Serial communication initialization //
+  Serial.begin(19200);
+  while (!Serial){
+  }
+  Serial.flush();
+}
+
+void loop() {
+  // LED //
+  for(int i=0; i<8; i++) {
+    pixels.setPixelColor(i, pixels.Color(150, 250,150));
+    pixels.show();
+  }
+
+  // if true: control loop starts //
+  if (Serial.available()>0 && arrCnt<numSamples){
+    // Read data from Jetson //
+    pos=Serial.readStringUntil('z');
+    ps=pos.toInt();
+
+    // Refrence position //
+    if(arrCnt<=1000) pr = 20000 ;
+    else if (arrCnt<=2000) pr = 26000;
+    else if (arrCnt<=3000) pr = 30000;
+
+  
+    //.......................Control Effort......................//
+    e0 = (pr - ps)/1000000;
+    u0=cu1*u1+cu2*u2+ce*e0+ce1*e1+ce2*e2;;
+    u0=applyVoltage(u0) ;
+    e2=e1; u2=u1; e1=e0; u1=u0;
+    
+    //............Storing data in an array in Log Mode...........//
+    ac_pos[arrCnt] = ps ;
+    ref_pos[arrCnt] = pr;
+  }
+
+  //................. Logged Data to Jetson......................//
+  else if (flag && arrCnt >= numSamples){
+    u0=applyVoltage(0.0) ;
+    Serial.println("Start/t Logging .....\n");
+    for (int ii=0; ii<numSamples;ii++) {
+      Serial.print(ac_pos[ii]);
+      Serial.print('\t');
+      Serial.println(ref_pos[ii]);
+    }
+    Serial.println("\n Logging completed!");
+    flag = 0;
+  }
+  
+}
+
+
+//............Applying Voltage to Driver............//
+double applyVoltage(double v){
+  if(v>ref) v=ref;
+  else if(v<-ref) v=-ref;
+  
+  if (v <0){
+      analogWrite(DAC0,map2(0.59-v,0.59,2.79,0,255));
+      analogWrite(DAC1,map2(0.59,0.59,2.79,0,255));
+  }
+  else if (v>=0){
+      analogWrite(DAC0,map2(0.59,0.59,2.79,0,255));
+      analogWrite(DAC1,map2(0.59+v,0.59,2.79,0,255));
+  }
+  return(v);
+  }
+
+
+//...............Mapping Voltage to DAC Resolution...........//
+double map2(double x, double a1,double a2, double b1,double b2){
+    return (x-a1)/(a2-a1)*(b2-b1)+b1;}
