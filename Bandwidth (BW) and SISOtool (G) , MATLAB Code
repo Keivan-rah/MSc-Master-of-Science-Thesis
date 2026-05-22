@@ -1,0 +1,7 @@
+syms num den ts G fb;
+num = [0 0.01838 0];
+den = [1 -1.982 0.9821];
+ts = (1/60);
+G = tf(num,den,ts);
+fb = bandwidth(G); % fb = 0.4495
+sisotool(G)
