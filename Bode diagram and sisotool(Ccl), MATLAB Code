@@ -1,0 +1,8 @@
+syms num den ts Ccl;
+num = [1.32744 -2.025407952 0.708 0];
+den = [1 -1.58772 0.739375 -0.07598 -0.065643564];
+ts = (1/60);
+Ccl = tf(num,den,ts);
+bode(Ccl);
+grid on ;
+sisotool(Ccl)
